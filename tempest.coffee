@@ -13,16 +13,18 @@ port = '80'
 totals = {}
 fetches = []
 
-lines = new liner('607.log')
+lines = new liner('test3.log')
 
 
-queueRequest = (offset, path, department)->
+queueRequest = (offset, path, department, origStatus)->
   request_options = {
     url: "http://#{host}:#{port}#{path}"
     headers: { "X-Reviewed-Category": department }
+    followRedirect: false
     resolveWithFullResponse: true
   }
 
+  origStatus = origStatus
   console.log("path=#{path} delay=#{offset}")
 
   fetches.push q.delay(offset).then ->
@@ -30,16 +32,19 @@ queueRequest = (offset, path, department)->
 
     request(request_options).then( (response)->
       elapsed = (new Date).getTime() - request_start
-      logger.info("status #{response.statusCode} in #{elapsed}ms at (#{department})#{request_options.url}")
+      status = response.statusCode+""
+      #console.log("%d %d", status, response.statusCode)
+
+      if origStatus is not status and not (status == "200" && origStatus == "304")
+        logger.warn("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
       { bytes: response.body?.length, time: elapsed, status: response.statusCode }
     ).catch (response)->
       elapsed = (new Date).getTime() - request_start
-      logger.warn("status #{response.statusCode} in #{elapsed}ms at (#{department})#{request_options.url}")
+      status = response.statusCode+""
+
+      if origStatus != status and not (status == "200" && origStatus == "304")
+        logger.error("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
       { bytes: response.body?.length, time: elapsed, status: response.statusCode }
-
-
-
-
 
 while line = lines.next()
   line = line.toString('ascii')
@@ -52,10 +57,11 @@ while line = lines.next()
   time = (new Date(Date.parse(parts[0]))).getTime()
   path = parts[4].replace(/^path=\"([^\"]+)\"/, '$1')
   department = parts[5].replace(/^host=([^.]+).reviewed.com/, '$1')
+  origStatus = parts[11].replace(/^status=([\w\d]+)/, '$1')
 
   offset = time - first_time
 
-  queueRequest(offset, path, department)
+  queueRequest(offset, path, department, origStatus)
 
 
 
