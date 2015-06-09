@@ -3,22 +3,26 @@ logger = require('winston')
 liner = require('n-readlines')
 q = require 'q'
 
-now = new Date
+usage = ->
+  console.log "Usage: coffee tempest.coffee http://example-host.com/ bigfatlogfile.log"
+  process.exit()
 
-first_time = null
+host = process.argv[2] || usage()
+logfile = process.argv[3] || usage()
 
-host = 'hydra-staging.herokuapp.com'
-port = '80'
 
 totals = {}
 fetches = []
 
-lines = new liner('test3.log')
+lines = new liner(logfile)
 
+
+now = new Date
+first_time = null
 
 queueRequest = (offset, path, department, origStatus)->
   request_options = {
-    url: "http://#{host}:#{port}#{path}"
+    url: host + path
     headers: { "X-Reviewed-Category": department }
     followRedirect: false
     resolveWithFullResponse: true
@@ -39,12 +43,15 @@ queueRequest = (offset, path, department, origStatus)->
         logger.warn("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
       { bytes: response.body?.length, time: elapsed, status: response.statusCode }
     ).catch (response)->
-      elapsed = (new Date).getTime() - request_start
-      status = response.statusCode+""
+      if response.error
+        console.log response.error
+      else
+        elapsed = (new Date).getTime() - request_start
+        status = response.statusCode+""
 
-      if origStatus != status and not (status == "200" && origStatus == "304")
-        logger.error("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
-      { bytes: response.body?.length, time: elapsed, status: response.statusCode }
+        if origStatus != status and not (status == "200" && origStatus == "304")
+          logger.error("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
+        { bytes: response.body?.length, time: elapsed, status: response.statusCode }
 
 while line = lines.next()
   line = line.toString('ascii')
