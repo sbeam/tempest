@@ -83,4 +83,4 @@ q.allSettled(fetches).then (results)->
     tally[status]['time'] += data.value?.time || 0
     tally[status]['count']++
   for own code, values of tally
-    console.log "%d: %d requests, %d bytes, %dsec", code, values.count, values.bytes, values.time/1000
+    console.log "%s: %d requests, %d bytes, %dsec", code, values.count, values.bytes, values.time/1000
