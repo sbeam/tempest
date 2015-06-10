@@ -1,5 +1,4 @@
 request = require('request-promise')
-logger = require('winston')
 liner = require('n-readlines')
 q = require 'q'
 
@@ -25,10 +24,9 @@ responseHandler = ->
     process.stdout.write('.')
     elapsed = (new Date).getTime() - request_start
     status = response.statusCode+""
-    #logger.debug "%d %d", status, response.statusCode
 
     if !status
-      logger.error("#{response.name} at #{response.options.url}")
+      console.error("#{response.name} at #{response.options.url}")
     else
       if status != "200"
         response = response.response # lol
