@@ -33,9 +33,8 @@ responseHandler = ->
       if status != "200"
         response = response.response # lol
       if origStatus != status and not (status == "200" && origStatus == "304")
-        if cat = response.request.headers['X-Reviewed-Category']
-          header = "-H X-Reviewed-Category:#{cat}"
-        console.warn("\nstatus #{status} (was #{origStatus}) in #{elapsed}ms: `curl #{header} #{response.request.uri.href}`")
+        cat = response.request.headers['X-Reviewed-Category']
+        console.log("\nstatus #{status} (was #{origStatus}) in #{elapsed}ms: `curl -I -H X-Reviewed-Category:#{cat} #{response.request.uri.href}`")
     { bytes: response.body?.length, time: elapsed, status: response.statusCode }
 
 queueRequest = (offset, path, department, origStatus)->
@@ -43,8 +42,10 @@ queueRequest = (offset, path, department, origStatus)->
     url: host + path
     followRedirect: false
     resolveWithFullResponse: true
+    headers: {
+      "X-Reviewed-Category": if (department == 'www') then 'reviewed' else department
+    }
   }
-  request_options.headers = { "X-Reviewed-Category": department } unless department == 'www'
 
   origStatus = origStatus
   console.log "path=#{path} department=#{department} delay=#{offset}"
