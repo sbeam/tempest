@@ -80,8 +80,9 @@ q.allSettled(fetches).then (results)->
   console.log "\n--\n%d requests complete.", results.length
   tally = {}
   results.forEach (data)->
-    (tally[data.value.status] ||= {bytes: 0, time: 0, count: 0})['bytes'] += data.value.bytes
-    tally[data.value.status]['time'] += data.value.time || 0
-    tally[data.value.status]['count']++
+    status = data.value?.status || 'WTF'
+    (tally[status] ||= {bytes: 0, time: 0, count: 0})['bytes'] += data.value?.bytes || 0
+    tally[status]['time'] += data.value?.time || 0
+    tally[status]['count']++
   for own code, values of tally
     console.log "%d: %d requests, %d bytes, %dsec", code, values.count, values.bytes, values.time/1000
