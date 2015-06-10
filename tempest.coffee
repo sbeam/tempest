@@ -6,6 +6,12 @@ usage = ->
   console.log "Usage: coffee tempest.coffee http://example-host.com/ bigfatlogfile.log"
   process.exit()
 
+
+specialCategories = {
+  www: 'reviewed'
+  projectors: 'videoprojectors'
+}
+
 host = process.argv[2] || usage()
 logfile = process.argv[3] || usage()
 
@@ -41,7 +47,7 @@ queueRequest = (offset, path, department, origStatus)->
     followRedirect: false
     resolveWithFullResponse: true
     headers: {
-      "X-Reviewed-Category": if (department == 'www') then 'reviewed' else department
+      "X-Reviewed-Category": specialCategories[department] || department
     }
   }
 
