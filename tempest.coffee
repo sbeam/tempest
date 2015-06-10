@@ -11,7 +11,6 @@ host = process.argv[2] || usage()
 logfile = process.argv[3] || usage()
 
 
-totals = {}
 fetches = []
 
 lines = new liner(logfile)
@@ -20,43 +19,47 @@ lines = new liner(logfile)
 now = new Date
 first_time = null
 
+responseHandler = ->
+  [origStatus, request_start] = arguments
+  (response)->
+    process.stdout.write('.')
+    elapsed = (new Date).getTime() - request_start
+    status = response.statusCode+""
+    #logger.debug "%d %d", status, response.statusCode
+
+    if !status
+      logger.error("#{response.name} at #{response.options.url}")
+    else
+      if status != "200"
+        response = response.response # lol
+      if origStatus != status and not (status == "200" && origStatus == "304")
+        if cat = response.request.headers['X-Reviewed-Category']
+          header = "-H X-Reviewed-Category:#{cat}"
+        console.warn("\nstatus #{status} (was #{origStatus}) in #{elapsed}ms: `curl #{header} #{response.request.uri.href}`")
+    { bytes: response.body?.length, time: elapsed, status: response.statusCode }
+
 queueRequest = (offset, path, department, origStatus)->
   request_options = {
     url: host + path
-    headers: { "X-Reviewed-Category": department }
     followRedirect: false
     resolveWithFullResponse: true
   }
+  request_options.headers = { "X-Reviewed-Category": department } unless department == 'www'
 
   origStatus = origStatus
-  console.log("path=#{path} delay=#{offset}")
+  console.log "path=#{path} department=#{department} delay=#{offset}"
 
   fetches.push q.delay(offset).then ->
+    process.stdout.write('^')
     request_start = (new Date).getTime()
-
-    request(request_options).then( (response)->
-      elapsed = (new Date).getTime() - request_start
-      status = response.statusCode+""
-      #console.log("%d %d", status, response.statusCode)
-
-      if origStatus is not status and not (status == "200" && origStatus == "304")
-        logger.warn("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
-      { bytes: response.body?.length, time: elapsed, status: response.statusCode }
-    ).catch (response)->
-      if response.error
-        console.log response.error
-      else
-        elapsed = (new Date).getTime() - request_start
-        status = response.statusCode+""
-
-        if origStatus != status and not (status == "200" && origStatus == "304")
-          logger.error("status #{status} (was #{origStatus}) in #{elapsed}ms at (#{department})#{request_options.url}")
-        { bytes: response.body?.length, time: elapsed, status: response.statusCode }
+    request(request_options)
+      .then(responseHandler(origStatus, request_start))
+      .catch(responseHandler(origStatus, request_start))
 
 while line = lines.next()
   line = line.toString('ascii')
   parts = line.split(' ')
-  continue unless parts.length > 5
+  continue unless parts.length > 11
 
   unless first_time
     first_time = (new Date(Date.parse(parts[0]))).getTime()
@@ -70,18 +73,14 @@ while line = lines.next()
 
   queueRequest(offset, path, department, origStatus)
 
-
-
-console.log "done with lines! #{fetches.length}"
+console.log "#{fetches.length} requests queued up!"
 
 q.allSettled(fetches).then (results)->
-  console.log "#{results.length} requests complete."
+  console.log "\n--\n%d requests complete.", results.length
   tally = {}
   results.forEach (data)->
     (tally[data.value.status] ||= {bytes: 0, time: 0, count: 0})['bytes'] += data.value.bytes
     tally[data.value.status]['time'] += data.value.time || 0
     tally[data.value.status]['count']++
   for own code, values of tally
-    console.log("#{code}: #{values.count} requests, #{values.bytes} bytes, #{values.time/1000}sec")
-
-
+    console.log "%d: %d requests, %d bytes, %dsec", code, values.count, values.bytes, values.time/1000
