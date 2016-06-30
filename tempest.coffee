@@ -2,6 +2,35 @@ request = require('request-promise')
 liner = require('n-readlines')
 q = require 'q'
 
+# Tempest.
+# A log-replay script that attempts to excercise a fork/staging app in the same
+# way as live production traffic, with the exact same requests and timing
+# distribution (assuming GET requests). Parses a raw heroku log dump, using the
+# lines from the router, to re-construct and request at the same time offset.
+#
+#   * Prints a simple '^' for an outgoing request, and a '.' for a received request.
+#
+#   * Reports on any results where the status code differs from the one
+#     received in production, and offers you a handy `curl` command you can use
+#     to replicate the request.
+#
+#   * When complete, reports on count, total time and the total difference in
+#     response times for each status code received.
+#
+# Can replay any log file size, have not tried up to 4000 requests or so.
+#
+# TODO:
+#   * better output with colorization and all that jazz
+#   * better final report output with a table
+#
+#
+# HOW TO USE:
+#
+# 1) grab sample of production logs via 'heroku logs -t' into a file, eg:
+#    heroku logs -t -a my-cool-app > bigfatlogfile.log
+#
+# 2) invoke per usage() below:
+
 usage = ->
   console.log "Usage: coffee tempest.coffee http://example-host.com/ bigfatlogfile.log"
   process.exit()
