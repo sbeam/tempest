@@ -38,7 +38,6 @@ usage = ->
 
 specialCategories = {
   www: 'reviewed'
-  projectors: 'videoprojectors'
 }
 
 host = process.argv[2] || usage()
